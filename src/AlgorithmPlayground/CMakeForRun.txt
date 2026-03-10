@@ -3,10 +3,8 @@ project(Project)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Include your algorithm playground dir
 include_directories(PV204project/src/AlgorithmPlayground)
 
-# Path to Rust FROST library (relative to this CMakeLists.txt)
 set(FROST_RUST_LIB
         ${CMAKE_SOURCE_DIR}/PV204project/src/AlgorithmPlayground/frostdemo/target/release
 )
@@ -21,18 +19,13 @@ add_executable(Project
         PV204project/src/AlgorithmPlayground/coordinator.h
 )
 
-# If you still need OpenSSL elsewhere, you can keep it:
-# find_package(OpenSSL REQUIRED)
-# target_link_libraries(Project OpenSSL::Crypto)
 
-# Link the Rust FROST .so + libsodium
 target_link_libraries(Project
         ${FROST_RUST_LIB}/libfrostdemo.so
         sodium
         dl
 )
 
-# Make runtime loader find libfrostdemo.so automatically
 set_target_properties(Project PROPERTIES
         BUILD_RPATH "${FROST_RUST_LIB}"
         INSTALL_RPATH "${FROST_RUST_LIB}"

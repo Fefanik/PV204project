@@ -1,13 +1,11 @@
-//
-// Created by fefan on 3/10/26.
-//
+#pragma once
+#include <cstdint>
 
-#ifndef PROJECT_NODE_H
-#define PROJECT_NODE_H
+class Node {
+public:
+    explicit Node(uint16_t id) : id_(id) {}
+    uint16_t id() const { return id_; }
 
-
-class node {
+private:
+    uint16_t id_;
 };
-
-
-#endif //PROJECT_NODE_H

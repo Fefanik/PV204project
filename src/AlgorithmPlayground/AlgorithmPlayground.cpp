@@ -1,61 +1,76 @@
+#include "coordinator.h"
+#include "node.h"
 
-
-
-#include "AlgorithmPlatgorund.h"
+#include <sodium.h>
+#include <vector>
 #include <iostream>
-#include <string>
-#include <openssl/sha.h>
-#include <sstream>
-#include <iomanip>
+#include <cstdio>
 
-std::string sha256(const std::string &input) {
-    unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256((const unsigned char*)input.c_str(), input.size(), hash);
-
-    std::stringstream ss;
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-        ss << std::hex << std::setw(2) << std::setfill('0') << (int)hash[i];
-    }
-    return ss.str();
+bool verify_ed25519(const unsigned char pk[32],
+                    const unsigned char sig[64],
+                    const std::string& msg)
+{
+    return crypto_sign_verify_detached(
+        sig,
+        reinterpret_cast<const unsigned char*>(msg.data()),
+        msg.size(),
+        pk
+    ) == 0;
 }
 
-class Node {
-private:
-    int id;
-    std::string keyShare;
-
-public:
-    Node(int nodeId, const std::string& share)
-        : id(nodeId), keyShare(share) {}
-
-    std::string signPartial(const std::string& message) {
-        return sha256(message + keyShare);
-    }
-
-    int getId() const {
-        return id;
-    }
-};
-
-int main(int argc, char* argv[]) {
-
-    if (argc != 3) {
-        std::cout << "Usage: ./node <node_id> <key_share>\n";
+int main() {
+    if (sodium_init() < 0) {
+        std::cerr << "libsodium init failed\n";
         return 1;
     }
 
-    int nodeId = std::stoi(argv[1]);
-    std::string keyShare = argv[2];
+    // Create coordinator (3 nodes, threshold 2)
+    Coordinator coord(3, 2);
 
-    Node node(nodeId, keyShare);
+    // Create nodes
+    std::vector<Node> nodes = {
+        Node(1),
+        Node(2),
+        Node(3)
+    };
 
-    std::string message;
-    std::getline(std::cin, message);
+    // Extract public key from FROST (32-byte Ed25519)
+    unsigned char public_key[32];
+    if (!coord.getPublicKey(public_key)) {
+        std::cerr << "Failed to get public key\n";
+        return 1;
+    }
 
-    std::string partialSig = node.signPartial(message);
+    std::string msg = "Hello threshold world!";
+    unsigned char signature[64];
 
-    std::cout << "Node " << node.getId() << " partial signature:\n";
-    std::cout << partialSig << std::endl;
+    // Produce real MPC signature
+    if (!coord.sign(msg, nodes, signature)) {
+        std::cerr << "Signing failed\n";
+        return 1;
+    }
+
+    // Print info
+    std::cout << "\n=== FROST Threshold Signature Demo ===\n";
+    std::cout << "Message: " << msg << "\n";
+    std::cout << "Signature: ";
+    for (int i = 0; i < 64; i++) printf("%02x", signature[i]);
+    std::cout << "\nPublic Key: ";
+    for (int i = 0; i < 32; i++) printf("%02x", public_key[i]);
+    std::cout << "\n";
+
+    // Good message
+    bool ok = verify_ed25519(public_key, signature, "Hello threshold world!");
+    std::cout << "Verification,should be ok sh: " << (ok ? "OK" : "FAIL") << "\n";
+
+    //Bad msg
+    bool nok = verify_ed25519(public_key, signature, "Bad msg");
+    std::cout << "Verification with bad ms: " << (nok ? "OK" : "FAIL") << "\n";
+
+    //Bad pk
+    unsigned char zero_pk[32] = {0};
+    bool nok2 = verify_ed25519(zero_pk, signature, "Hello threshold world!");
+    std::cout << "Verification with zero pk: " << (nok2 ? "OK" : "FAIL") << "\n";
 
     return 0;
 }

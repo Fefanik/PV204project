@@ -1,0 +1,12 @@
+[package]
+name = "frostdemo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+frost-core = "1"
+frost-ed25519 = "1"
+rand = "0.8"
+
+[lib]
+crate-type = ["cdylib"]
