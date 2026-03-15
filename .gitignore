@@ -45,3 +45,9 @@ obj/
 
 # Compiled executables
 bin/
+build/
+**/target/
+
+# Config folders
+.idea/
+.vscode/
