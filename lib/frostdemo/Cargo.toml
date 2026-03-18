@@ -1,12 +1,18 @@
+
 [package]
-name = "frostdemo"
+name = "frost_ffi"
 version = "0.1.0"
 edition = "2021"
 
-[dependencies]
-frost-core = "1"
-frost-ed25519 = "1"
-rand = "0.8"
-
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+frost-ed25519 = { version = "2", default-features = true }   # FROST over Ed25519
+rand = "0.8"                                                  # for OsRng
+serde = { version = "1", features = ["derive"] }
+bincode = "1"
+libc = "0.2.183"
+
+[build-dependencies]
+cbindgen = "0.26"                                             # generates the C header
