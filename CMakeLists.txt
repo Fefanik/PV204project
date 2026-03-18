@@ -33,12 +33,14 @@ add_executable(crypto_demo
     src/AlgorithmPlayground.cpp
     src/node.cpp
     src/coordinator.cpp
+        src/server_main.cpp
 )
 
 add_executable(node_app
     src/server_main.cpp
     src/node.cpp
     src/coordinator.cpp
+        src/frost_ffi.h
 )
 
 # Link libraries
@@ -65,3 +67,18 @@ else()
         INSTALL_RPATH "${FROST_RUST_LIB}"
     )
 endif()
+
+
+
+add_executable(keygen src/keygen.cpp)
+target_link_libraries(keygen
+        ${FROST_RUST_LIB}/libfrostdemo.${LIB_EXT}
+        dl
+        pthread
+)
+set_target_properties(keygen PROPERTIES
+        BUILD_RPATH "${FROST_RUST_LIB}"
+        INSTALL_RPATH "${FROST_RUST_LIB}"
+)
+
+

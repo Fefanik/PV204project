@@ -316,3 +316,36 @@ pub extern "C" fn frost_aggregate(
 
     0
 }
+
+#[no_mangle]
+pub extern "C" fn frost_merge_sigshare_maps(
+    maps_ptrs: *const *const u8,
+    maps_lens: *const usize,
+    count: usize,
+    out_ptr: *mut *mut u8,
+    out_len: *mut usize,
+) -> i32 {
+    if maps_ptrs.is_null() || maps_lens.is_null() || out_ptr.is_null() || out_len.is_null() {
+        return 1;
+    }
+    let ptrs = unsafe { std::slice::from_raw_parts(maps_ptrs, count) };
+    let lens = unsafe { std::slice::from_raw_parts(maps_lens, count) };
+    let mut combined = std::collections::BTreeMap::<frost::Identifier, round2::SignatureShare>::new();
+
+    for i in 0..count {
+        let data = unsafe { std::slice::from_raw_parts(ptrs[i], lens[i]) };
+        let one: std::collections::BTreeMap<frost::Identifier, round2::SignatureShare> =
+            match bincode::deserialize(data) { Ok(v)=>v, Err(_)=>return 2 };
+        for (id, s) in one { combined.insert(id, s); }
+    }
+
+    let bytes = match bincode::serialize(&combined) { Ok(v)=>v, Err(_)=>return 3 };
+    unsafe {
+        let p = libc::malloc(bytes.len()) as *mut u8;
+        if p.is_null() { return 4; }
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), p, bytes.len());
+        *out_ptr = p;
+        *out_len = bytes.len();
+    }
+    0
+}

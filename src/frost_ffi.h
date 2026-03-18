@@ -24,6 +24,9 @@ extern "C" {
         const uint8_t* pkg_ptr, size_t pkg_len,
         const uint8_t* shares_ptr, size_t shares_len,
         uint8_t* out_sig64 /* 64 bytes */);
+    int frost_merge_sigshare_maps(
+        const uint8_t* const* share_maps, const size_t* share_lens, size_t count,
+        uint8_t** out_ptr, size_t* out_len);
 
     // --- Node-only ---
     int frost_load_keyshare(const uint8_t* key_ptr, size_t key_len,
@@ -33,7 +36,6 @@ extern "C" {
 
     int frost_round2(const uint8_t* signing_pkg, size_t signing_pkg_len,
                      uint8_t** out_share_map, size_t* out_len);
-
 #ifdef __cplusplus
 }
 #endif
