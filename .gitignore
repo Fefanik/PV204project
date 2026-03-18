@@ -45,3 +45,12 @@ obj/
 
 # Compiled executables
 bin/
+build/
+**/target/
+
+# Config folders
+.idea/
+.vscode/
+
+# So no locally stored key propagates into public repo
+*.key
