@@ -349,3 +349,50 @@ pub extern "C" fn frost_merge_sigshare_maps(
     }
     0
 }
+
+
+#[no_mangle]
+pub extern "C" fn frost_verify(
+    msg_ptr: *const u8,
+    msg_len: usize,
+    sig_ptr: *const u8,
+    sig_len: usize,
+    pk_pkg_ptr: *const u8,
+    pk_pkg_len: usize,
+) -> i32 {
+    if msg_ptr.is_null() || sig_ptr.is_null() || pk_pkg_ptr.is_null() {
+        return 1; // null input
+    }
+    if sig_len != 64 {
+        return 2; // signature must be exactly 64 bytes
+    }
+
+    let msg        = unsafe { std::slice::from_raw_parts(msg_ptr, msg_len) };
+    let sig_bytes  = unsafe { std::slice::from_raw_parts(sig_ptr, sig_len) };
+    let pk_pkg_raw = unsafe { std::slice::from_raw_parts(pk_pkg_ptr, pk_pkg_len) };
+
+    // Deserialize PublicKeyPackage using the same bincode you use elsewhere
+    let pub_pkg: frost::keys::PublicKeyPackage = match bincode::deserialize(pk_pkg_raw) {
+        Ok(v) => v,
+        Err(_) => return 3, // bad public key package encoding
+    };
+
+    // Convert 64 raw bytes into the FROST signature type
+    let mut sig64 = [0u8; 64];
+    sig64.copy_from_slice(sig_bytes);
+    let signature = match frost::Signature::deserialize(&sig64) {
+        Ok(s) => s,
+        Err(_) => return 4, // bad signature encoding
+    };
+
+    // Verify against the verifying key contained in the PublicKeyPackage
+    let vk = pub_pkg.verifying_key();
+    match vk.verify(msg, &signature) {
+        Ok(()) => 0, // VALID
+        Err(_) => 5, // INVALID
+    }
+}
+
+
+
+

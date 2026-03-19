@@ -76,6 +76,7 @@ int main(int argc, char* argv[]) {
         std::cerr << "Usage: ./node_app <port> <node_id> <key_file>[peer_urls...]\n";
         return 1;
     }
+    std::cout.setf(std::ios::unitbuf);
 
     int my_port = std::stoi(argv[1]);
     int my_id = std::stoi(argv[2]);

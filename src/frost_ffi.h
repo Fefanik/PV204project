@@ -5,7 +5,9 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+    int frost_verify(const uint8_t* msg, size_t msg_len,
+                 const uint8_t* sig64, size_t sig_len,
+                 const uint8_t* pubkey_pkg, size_t pubkey_pkg_len);
     // --- Orchestrator-only ---
     int frost_keygen(uint16_t n, uint16_t t,
                      uint8_t** out_key_ptrs /* array n */, size_t* out_key_lens /* array n */,

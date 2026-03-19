@@ -15,4 +15,4 @@ bincode = "1"
 libc = "0.2.183"
 
 [build-dependencies]
-cbindgen = "0.26"                                             # generates the C header
+cbindgen = "0.26"

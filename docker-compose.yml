@@ -3,7 +3,7 @@ services:
     build: .
     volumes:
       - ./keys:/app/keys
-    command: ["./node_app", "8081", "1", "/app/keys/node1.key", "http://node2:8082", "http://node3:8083"]
+    command: ["./server_main", "8081", "1", "/app/keys/node1.key", "http://node2:8082", "http://node3:8083"]
     ports:
       - "8081:8081"
 
@@ -11,7 +11,7 @@ services:
     build: .
     volumes:
       - ./keys:/app/keys
-    command: ["./node_app", "8082", "2", "/app/keys/node2.key", "http://node1:8081", "http://node3:8083"]
+    command: ["./server_main", "8082", "2", "/app/keys/node2.key", "http://node1:8081", "http://node3:8083"]
     ports:
       - "8082:8082"
 
@@ -19,6 +19,6 @@ services:
     build: .
     volumes:
       - ./keys:/app/keys
-    command: ["./node_app", "8083", "3", "/app/keys/node3.key", "http://node1:8081", "http://node2:8082"]
+    command: ["./server_main", "8083", "3", "/app/keys/node3.key", "http://node1:8081", "http://node2:8082"]
     ports:
       - "8083:8083"
