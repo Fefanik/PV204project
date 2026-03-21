@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <iomanip>
+
 #include "frost_ffi.h"   // make sure this is in your include path
 
 static void write_file(const std::string& path, const uint8_t* p, size_t n) {

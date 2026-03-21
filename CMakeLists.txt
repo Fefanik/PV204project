@@ -32,14 +32,19 @@ set(COMMON_LIBS
         pthread
 )
 
-# Only one executable: server_main
-add_executable(server_main
-        src/server_main.cpp
-        src/node.cpp
-        src/coordinator.cpp
-        src/verify_cli.cpp
+add_executable(keygen
+    src/keygen.cpp
 )
+target_link_libraries(keygen ${COMMON_LIBS})
 
+add_executable(verify_cli
+    src/verify_cli.cpp
+)
+target_link_libraries(verify_cli ${COMMON_LIBS})
+
+add_executable(server_main
+    src/server_main.cpp
+)
 target_link_libraries(server_main ${COMMON_LIBS})
 
 # RPATH for Rust shared library

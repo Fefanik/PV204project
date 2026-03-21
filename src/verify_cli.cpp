@@ -3,23 +3,22 @@
 #include <vector>
 #include <string>
 #include <cstdint>
-#include <cstring>    // memset
-#include <algorithm>  // remove_if
+#include <cstring>
+#include <algorithm>
+
 #include "frost_ffi.h"
 
-// -------- Robust Base64 decode (handles '=' padding & ignores whitespace) --------
 static inline int b64val(int c) {
     if (c >= 'A' && c <= 'Z') return c - 'A';
     if (c >= 'a' && c <= 'z') return c - 'a' + 26;
     if (c >= '0' && c <= '9') return c - '0' + 52;
     if (c == '+') return 62;
     if (c == '/') return 63;
-    return -1; // not base64
+    return -1; 
 }
 
 static std::vector<uint8_t> b64dec(std::string s) {
-    // Remove whitespace that might slip in from copy/paste
-    s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char ch){
+    s.erase(std::remove_if(s.begin(), s.end(),[](unsigned char ch){
         return ch=='\n' || ch=='\r' || ch=='\t' || ch==' ';
     }), s.end());
 
@@ -29,7 +28,6 @@ static std::vector<uint8_t> b64dec(std::string s) {
     int q[4]; int qi = 0; int pad = 0;
 
     auto flush = [&](int valid){
-        // valid: number of *actual* sextets (before '=' padding)
         if (valid < 2) return;
         int v0 = q[0], v1 = q[1], v2 = (valid > 2 ? q[2] : 0), v3 = (valid > 3 ? q[3] : 0);
         uint32_t triple = (uint32_t(v0) << 18) | (uint32_t(v1) << 12) |
@@ -41,11 +39,10 @@ static std::vector<uint8_t> b64dec(std::string s) {
 
     for (unsigned char ch : s) {
         if (ch == '=') {
-            // Pad: complete current quartet then stop when quartet is full
             q[qi++] = 0;
             pad++;
             if (qi == 4) {
-                int valid = 4 - pad; // '==' -> 2 valid; '=' -> 3 valid
+                int valid = 4 - pad; 
                 flush(valid);
                 qi = 0;
                 pad = 0;
@@ -53,50 +50,36 @@ static std::vector<uint8_t> b64dec(std::string s) {
             continue;
         }
         int v = b64val(ch);
-        if (v < 0) continue; // skip non-base64 chars
+        if (v < 0) continue; 
         q[qi++] = v;
         if (qi == 4) {
             flush(4);
             qi = 0;
         }
     }
-    if (qi > 0) flush(qi); // flush trailing, unpadded quartet
+    if (qi > 0) flush(qi); 
     return out;
 }
 
-// ===============================
-// Hardcoded PublicKeyPackage from your server (must match nodes)
-// ===============================
-static const uint8_t HARDCODED_PUBKEY_PKG[] = {
-    0x00, 0xB1, 0x69, 0xF0, 0xDA, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBF, 0xE9, 0xAF,
-    0x95, 0x33, 0x19, 0xA6, 0xFC, 0x77, 0xBB, 0x5F, 0x71, 0xAA, 0xF2, 0xA6, 0x0D, 0x81, 0xFA, 0xA4,
-    0x92, 0xAD, 0x9A, 0xC8, 0x01, 0xC9, 0xB0, 0xFF, 0xF6, 0xF0, 0xAC, 0xAB, 0x86, 0x02, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xBA, 0x69, 0xDD,
-    0x7D, 0xDE, 0x23, 0x10, 0x14, 0x81, 0x09, 0xDC, 0x7B, 0xF8, 0xB0, 0x24, 0x3F, 0x99, 0xEA, 0x81,
-    0xE9, 0xE7, 0x1B, 0x53, 0x35, 0xB4, 0x2D, 0x05, 0x48, 0xAF, 0x18, 0x99, 0x5A, 0x03, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFA, 0x1B, 0x76,
-    0x83, 0x0D, 0x49, 0x88, 0x1B, 0x45, 0x28, 0xA2, 0x7F, 0x48, 0xBC, 0x83, 0x27, 0x69, 0xFB, 0x25,
-    0xE2, 0xE9, 0x11, 0x5A, 0x65, 0xE4, 0x66, 0xF8, 0xB0, 0x5F, 0x87, 0xD3, 0xD2, 0x53, 0x03, 0x17,
-    0xC0, 0xC5, 0x59, 0xE2, 0xF8, 0x7D, 0xB5, 0xCA, 0x13, 0x4E, 0x35, 0xA7, 0x02, 0xBA, 0xBB, 0x74,
-    0x9B, 0x18, 0x5C, 0x8B, 0x81, 0x21, 0xB8, 0x4F, 0xB5, 0xB7, 0x77, 0x84, 0x10
-};
-static const size_t HARDCODED_PUBKEY_PKG_LEN = sizeof(HARDCODED_PUBKEY_PKG);
-
 int main(int argc, char** argv) {
-    if (argc != 3) {
-        std::cerr << "Usage:\n  verify_cli <payload_signed> <final_signature_b64>\n";
+    // UPDATED: Now requires 3 arguments
+    if (argc != 4) {
+        std::cerr << "Usage:\n  verify_cli <payload_signed> <final_signature_b64> <public_key_b64>\n";
         return 2;
     }
     const std::string payload = argv[1];
     std::string sig_b64 = argv[2];
+    std::string pub_b64 = argv[3]; // The public key from the JSON response
 
     auto sig = b64dec(sig_b64);
     if (sig.size() != 64) {
         std::cerr << "Bad sig len: " << sig.size() << " (expected 64)\n";
+        return 1;
+    }
+
+    auto pub_pkg = b64dec(pub_b64);
+    if (pub_pkg.empty()) {
+        std::cerr << "Bad public key string or empty base64.\n";
         return 1;
     }
 
@@ -105,8 +88,8 @@ int main(int argc, char** argv) {
         payload.size(),
         sig.data(),
         sig.size(),
-        HARDCODED_PUBKEY_PKG,
-        HARDCODED_PUBKEY_PKG_LEN
+        pub_pkg.data(),
+        pub_pkg.size()
     );
 
     std::cout << (rc == 0 ? "VALID\n" : "INVALID\n");
