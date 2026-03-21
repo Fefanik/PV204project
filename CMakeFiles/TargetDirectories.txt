@@ -1,5 +1,0 @@
-/home/fefan/Desktop/SecurityTechnologies/Project/PV204project/CMakeFiles/crypto_demo.dir
-/home/fefan/Desktop/SecurityTechnologies/Project/PV204project/CMakeFiles/node_app.dir
-/home/fefan/Desktop/SecurityTechnologies/Project/PV204project/CMakeFiles/keygen.dir
-/home/fefan/Desktop/SecurityTechnologies/Project/PV204project/CMakeFiles/edit_cache.dir
-/home/fefan/Desktop/SecurityTechnologies/Project/PV204project/CMakeFiles/rebuild_cache.dir
