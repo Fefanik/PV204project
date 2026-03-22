@@ -9,6 +9,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      # Install Docker Engine + Compose V2 (Ubuntu 24.04 / noble)
       - name: Install Docker Compose (Docker official repo, Ubuntu 24.04)
         run: |
           sudo apt-get update
@@ -24,17 +25,33 @@ jobs:
       - name: Start cluster
         run: |
           docker compose up -d
+          # give services a moment to start and load keys
           sleep 5
           docker ps
+
+      # Build the client the same way you do locally (CMake + Ninja)
+      - name: Install toolchain (CMake + Ninja + headers)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build libssl-dev \
+                                  nlohmann-json3-dev libhttplib-dev
+
+      - name: Configure & build with CMake/Ninja
+        run: |
+          rm -rf build
+          cmake -S . -B build -G Ninja
+          cmake --build build
+          echo "Built executables:"
+          find build -maxdepth 2 -type f -executable -print || true
 
       - name: Create test file
         run: echo "hello frost" > sample.txt
 
       - name: "Run client: stamp"
-        run: ./client stamp sample.txt http://localhost:8081
+        run: build/client_cli stamp sample.txt http://localhost:8081
 
       - name: "Run client: verify"
-        run: ./client verify sample.txt sample.txt.receipt.json
+        run: build/client_cli verify sample.txt sample.txt.receipt.json
 
       - name: Teardown
         if: always()
