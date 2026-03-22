@@ -1,18 +1,34 @@
-Client module plan
+Client module
 
-Goal:
-- implement a C++ client CLI for document submission and timestamp verification
+Current status
+- C++ client CLI integrated into the project build
+- `stamp` is functional end-to-end
+- `verify` is functional end-to-end
 
-Planned commands:
-- client_cli stamp <file> [server_url]
-- client_cli verify <file> <receipt.json>
+Commands
+- `./build/client_cli stamp <file> [server_url]`
+- `./build/client_cli verify <file> <receipt.json>`
 
-Current server contract:
-- POST /timestamp
-- request JSON: {"document_hash":"<hash>"}
-- response JSON includes:
-  - status
-  - timestamp
-  - payload_signed
-  - final_signature_b64
-  - public_key_b64
+Default server URL
+- `http://localhost:8081`
+
+How to test locally
+
+1. Start the backend:
+   `docker compose up --build`
+
+2. Build locally:
+   `cmake -S . -B build -G Ninja && cmake --build build`
+
+3. Create a test file:
+   `echo 'hello timestamp project' > test.txt`
+
+4. Request a timestamp:
+   `./build/client_cli stamp test.txt`
+
+5. Verify the receipt:
+   `./build/client_cli verify test.txt test.txt.receipt.json`
+
+Expected result
+- the verify command should print:
+  `VALID`

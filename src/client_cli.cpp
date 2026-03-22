@@ -149,6 +149,23 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
+        json receipt_json;
+        try {
+            receipt_json = json::parse(response->body);
+        } catch (const std::exception& e) {
+            std::cerr << "Error: invalid JSON response from server: " << e.what() << "\n";
+            return 1;
+        }
+
+        if (!receipt_json.contains("status") ||
+            !receipt_json.contains("timestamp") ||
+            !receipt_json.contains("payload_signed") ||
+            !receipt_json.contains("final_signature_b64") ||
+            !receipt_json.contains("public_key_b64")) {
+            std::cerr << "Error: server response missing required fields\n";
+            return 1;
+        }
+
         const std::string receipt_path = default_receipt_path(file);
         std::ofstream receipt_out(receipt_path, std::ios::binary);
         if (!receipt_out) {
@@ -156,7 +173,7 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
-        receipt_out << response->body;
+        receipt_out << receipt_json.dump();
         receipt_out.close();
 
         std::cout << "Receipt saved to: " << receipt_path << "\n";

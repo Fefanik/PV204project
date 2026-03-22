@@ -64,3 +64,7 @@ CMakeCache.txt
 keygen
 verify_cli
 server_main
+
+# Local client test artifacts
+*.receipt.json
+test.txt
