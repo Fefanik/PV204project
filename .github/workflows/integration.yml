@@ -34,7 +34,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential cmake ninja-build libssl-dev \
-            nlohmann-json3-dev libcpp-httplib-dev
+            nlohmann-json3-dev libcpp-httplib-dev \
+            libsodium-dev
 
       - name: "Configure & build with CMake/Ninja"
         run: |
