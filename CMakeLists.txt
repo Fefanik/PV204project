@@ -41,6 +41,11 @@ add_executable(verify_cli
     src/verify_cli.cpp
 )
 
+
+add_executable(client_cli
+    src/client_cli.cpp
+)
+
 add_executable(server_main
     src/server_main.cpp
 )
@@ -49,15 +54,16 @@ add_executable(server_main
 target_link_libraries(keygen ${COMMON_LIBS})
 target_link_libraries(verify_cli ${COMMON_LIBS})
 target_link_libraries(server_main ${COMMON_LIBS})
+target_link_libraries(client_cli ${COMMON_LIBS})
 
 # RPATH for Rust shared library
 if(APPLE)
-    set_target_properties(server_main keygen verify_cli PROPERTIES
+    set_target_properties(server_main keygen verify_cli client_cli PROPERTIES
             INSTALL_RPATH "@loader_path/../lib/frostdemo/target/release"
             BUILD_WITH_INSTALL_RPATH TRUE
     )
 else()
-    set_target_properties(server_main keygen verify_cli PROPERTIES
+    set_target_properties(server_main keygen verify_cli client_cli PROPERTIES
             BUILD_RPATH "${FROST_RUST_LIB}"
             INSTALL_RPATH "${FROST_RUST_LIB}"
     )
