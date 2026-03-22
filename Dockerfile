@@ -1,21 +1,16 @@
-FROM ubuntu:24.04
+FROM rust:latest
 
-# Install all necessary dependencies for C++, Rust, and Crypto
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y build-essential cmake libssl-dev cargo curl libsodium-dev
+RUN apt-get update && apt-get install -y \
+    cmake build-essential libssl-dev libsodium-dev pkg-config
 
 WORKDIR /app
-COPY . /app
+COPY . .
 
-# Build the frost crypto library
 WORKDIR /app/lib/frostdemo
-RUN rm -f Cargo.lock && cargo build --release
+RUN cargo build --release
 
-# Build the project
 WORKDIR /app
-RUN mkdir build && cd build && cmake .. && make
+RUN mkdir -p build && cd build && cmake .. && make -j$(nproc)
 
-# Expose the base port
 EXPOSE 8080
-
 WORKDIR /app/build

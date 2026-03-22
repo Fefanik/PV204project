@@ -54,3 +54,17 @@ build/
 
 # So no locally stored key propagates into public repo
 *.key
+*.inc
+
+# CMake auto-generated folders
+CMakeFiles/
+CMakeCache.txt
+
+# Executables
+keygen
+verify_cli
+server_main
+
+# Local client test artifacts
+*.receipt.json
+test.txt

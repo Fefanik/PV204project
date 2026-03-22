@@ -1,0 +1,73 @@
+name: Minimal Integration Test
+
+on: [push, pull_request]
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install Docker Compose (Docker official repo, Ubuntu 24.04)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates curl gnupg
+          sudo install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+          sudo chmod a+r /etc/apt/keyrings/docker.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu noble stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+          docker compose version
+
+      - name: Start cluster
+        run: |
+          docker compose up -d
+          # give services a moment to start and load keys
+          sleep 5
+          docker ps
+
+      - name: Install toolchain (CMake + Ninja + headers + Rust)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake ninja-build libssl-dev \
+            nlohmann-json3-dev libcpp-httplib-dev \
+            libsodium-dev rustc cargo pkg-config
+
+      - name: Build Rust FROST library
+        run: |
+          cargo --version
+          rustc --version
+          cargo build --release --manifest-path lib/frostdemo/Cargo.toml
+          ls -l lib/frostdemo/target/release || true
+
+      - name: "Configure & build with CMake/Ninja"
+        run: |
+          rm -rf build
+          cmake -S . -B build -G Ninja
+          cmake --build build
+          echo "Built executables:"
+          find build -maxdepth 2 -type f -executable -print || true
+
+      - name: Create test file
+        run: echo "hello frost" > sample.txt
+
+      - name: "Run client: stamp"
+        run: build/client_cli stamp sample.txt http://localhost:8081
+
+      - name: "Run client: verify (assert EXACT 'VALID')"
+        run: |
+          set -euo pipefail
+          OUT="$(build/client_cli verify sample.txt sample.txt.receipt.json)"
+          echo "Verifier output: [$OUT]"
+          if [ "$OUT" != "VALID" ]; then
+            echo "Expected exactly 'VALID'"
+            exit 1
+          fi
+      
+
+      - name: Teardown
+        if: always()
+        run: docker compose down
