@@ -5,31 +5,30 @@ on: [push, pull_request]
 jobs:
   integration:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-    - name: Install Docker Compose
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y docker-compose-plugin
+      - name: Install Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose-plugin
 
-    - name: Start cluster
-      run: |
-        docker compose up -d
-        sleep 5
-        docker ps
+      - name: Start cluster
+        run: |
+          docker compose up -d
+          sleep 5
+          docker ps
 
-    - name: Create test file
-      run: echo "hello frost" > sample.txt
+      - name: Create test file
+        run: echo "hello frost" > sample.txt
 
-    - name: Run client: stamp
-      run: ./client stamp sample.txt http://localhost:8081
+      - name: "Run client: stamp"
+        run: ./client stamp sample.txt http://localhost:8081
 
-    - name: Run client: verify
-      run: ./client verify sample.txt sample.txt.receipt.json
+      - name: "Run client: verify"
+        run: ./client verify sample.txt sample.txt.receipt.json
 
-    - name: Teardown
-      if: always()
-      run: docker compose down
+      - name: Teardown
+        if: always()
+        run: docker compose down
