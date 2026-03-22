@@ -29,14 +29,14 @@ jobs:
           sleep 5
           docker ps
 
-      # Build the client the same way you do locally (CMake + Ninja)
       - name: Install toolchain (CMake + Ninja + headers)
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build libssl-dev \
-                                  nlohmann-json3-dev libhttplib-dev
+          sudo apt-get install -y \
+            build-essential cmake ninja-build libssl-dev \
+            nlohmann-json3-dev libcpp-httplib-dev
 
-      - name: Configure & build with CMake/Ninja
+      - name: "Configure & build with CMake/Ninja"
         run: |
           rm -rf build
           cmake -S . -B build -G Ninja
