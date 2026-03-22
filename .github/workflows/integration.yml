@@ -24,6 +24,7 @@ jobs:
       - name: Start cluster
         run: |
           docker compose up -d
+          # give services a moment to start and load keys
           sleep 5
           docker ps
 
@@ -33,7 +34,14 @@ jobs:
           sudo apt-get install -y \
             build-essential cmake ninja-build libssl-dev \
             nlohmann-json3-dev libcpp-httplib-dev \
-            libsodium-dev rustc cargo
+            libsodium-dev rustc cargo pkg-config
+
+      - name: Build Rust FROST library
+        run: |
+          cargo --version
+          rustc --version
+          cargo build --release --manifest-path lib/frostdemo/Cargo.toml
+          ls -l lib/frostdemo/target/release || true
 
       - name: "Configure & build with CMake/Ninja"
         run: |
@@ -42,8 +50,6 @@ jobs:
           cmake --build build
           echo "Built executables:"
           find build -maxdepth 2 -type f -executable -print || true
-          echo "Rust artifacts (if shared/static):"
-          ls -l lib/frostdemo/target/release || true
 
       - name: Create test file
         run: echo "hello frost" > sample.txt
