@@ -57,8 +57,16 @@ jobs:
       - name: "Run client: stamp"
         run: build/client_cli stamp sample.txt http://localhost:8081
 
-      - name: "Run client: verify"
-        run: build/client_cli verify sample.txt sample.txt.receipt.json
+      - name: "Run client: verify (assert EXACT 'VALID')"
+        run: |
+          set -euo pipefail
+          OUT="$(build/client_cli verify sample.txt sample.txt.receipt.json)"
+          echo "Verifier output: [$OUT]"
+          if [ "$OUT" != "VALID" ]; then
+            echo "Expected exactly 'VALID'"
+            exit 1
+          fi
+      
 
       - name: Teardown
         if: always()
