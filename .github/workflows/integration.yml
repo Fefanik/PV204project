@@ -51,6 +51,11 @@ jobs:
           echo "Built executables:"
           find build -maxdepth 2 -type f -executable -print || true
 
+      - name: "Run Unit Tests"
+        run: |
+          cd build
+          ctest --output-on-failure
+
       - name: Create test file
         run: echo "hello frost" > sample.txt
 
