@@ -12,6 +12,7 @@
 #include "httplib.h"
 #include "json.hpp"
 #include "frost_ffi.h"
+#include <openssl/sha.h>
 
 using json = nlohmann::json;
 
@@ -45,7 +46,40 @@ static std::vector<uint8_t> b64dec(const std::string& s){
     return out;
 }
 
-// manage Rust malloc'ed buffers easily
+
+std::string sha256(const std::string &input) {
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(reinterpret_cast<const unsigned char*>(input.data()),
+           input.size(), hash);
+
+    std::string out;
+    out.reserve(SHA256_DIGEST_LENGTH * 2);
+    static const char* hex = "0123456789abcdef";
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+        out.push_back(hex[(hash[i] >> 4) & 0xF]);
+        out.push_back(hex[hash[i] & 0xF]);
+    }
+    return out;
+}
+
+json build_ceritiface(std::string my_pub_key,int my_id) {
+    std::string pub_key_b64 = b64enc(
+        reinterpret_cast<const uint8_t*>(my_pub_key.data()),
+        my_pub_key.size()
+    );
+
+    std::string cert_fingerprint = sha256(
+        std::to_string(my_id) + pub_key_b64
+    );
+
+    json certificate = {
+        {"node_id", my_id},
+        {"pub_key_b64", pub_key_b64},
+        {"fingerprint", cert_fingerprint}
+    };
+    return certificate;
+}
+
 struct RustBuf { uint8_t* p=nullptr; size_t n=0; ~RustBuf(){ if(p) std::free(p); } };
 
 int main(int argc, char* argv[]) {
@@ -82,7 +116,8 @@ int main(int argc, char* argv[]) {
     }
     std::string my_pub_key((std::istreambuf_iterator<char>(pub_key_file)),
                             std::istreambuf_iterator<char>());
-    
+    json certificate = build_ceritiface(my_pub_key, my_id);
+
     std::cout << "[Node " << my_id << "] Keys loaded successfully! Sec: "
               << my_secret_share.length() << " bytes, Pub: " << my_pub_key.length() << " bytes.\n";
 
@@ -122,7 +157,7 @@ int main(int argc, char* argv[]) {
         res.set_content(j.dump(), "application/json");
     });
 
-    svr.Post("/timestamp",[my_id, my_pub_key, &peers](const httplib::Request &req, httplib::Response &res) {
+    svr.Post("/timestamp",[my_id, my_pub_key, &peers, certificate](const httplib::Request &req, httplib::Response &res) {
         auto json_req = json::parse(req.body);
         std::string document_hash = json_req["document_hash"];
 
@@ -196,7 +231,6 @@ int main(int argc, char* argv[]) {
             res.status=500; res.set_content("{\"error\":\"aggregate failed\"}", "application/json"); return;
         }
 
-        // UPDATED: added public_key_b64 to response
         json final_response = {
             {"status", "success"},
             {"timestamp", current_time},
@@ -204,6 +238,9 @@ int main(int argc, char* argv[]) {
             {"final_signature_b64", b64enc(sig64.data(), sig64.size())},
             {"public_key_b64", b64enc(reinterpret_cast<const uint8_t*>(my_pub_key.data()), my_pub_key.size())}
         };
+
+        final_response["certificate"] = certificate;
+
         res.set_content(final_response.dump(), "application/json");
     });
 

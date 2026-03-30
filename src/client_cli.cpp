@@ -4,6 +4,7 @@
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <filesystem>
 
 #include <openssl/sha.h>
 
@@ -12,6 +13,23 @@
 #include "base64.h"
 
 using json = nlohmann::json;
+
+
+std::string sha256_string(const std::string &input) {
+    std::vector<unsigned char> vec(input.begin(), input.end());
+    return sha256_hex(vec);
+}
+
+std::string cert_dir() {
+    return std::string(getenv("HOME")) + "/.frost_certs";
+}
+
+std::string cert_path_for_node(const std::string &node_id) {
+    return cert_dir() + "/server_" + node_id + ".cert.json";
+}
+void ensure_cert_dir() {
+    std::filesystem::create_directories(cert_dir());
+}
 
 void print_usage() {
     std::cout
@@ -90,6 +108,35 @@ int handle_stamp(const std::string& file, const std::string& server_url) {
         return 1;
     }
 
+    // -----------------------------------------------
+    // Extract certificate from server response (new)
+    // -----------------------------------------------
+    if (!receipt_json.contains("certificate")) {
+        std::cerr << "Error: server did not send a certificate\n";
+        return 1;
+    }
+
+    json cert_json = receipt_json["certificate"];
+    int node_int = cert_json["node_id"].get<int>();
+    std::string node_id = std::to_string(node_int);
+
+    // Ensure certificate directory exists
+    ensure_cert_dir();
+
+    // Build certificate path
+    std::string cert_path = cert_path_for_node(node_id);
+
+    // Save certificate
+    std::ofstream cert_out(cert_path);
+    if (!cert_out) {
+        std::cerr << "Error: cannot write certificate file: " << cert_path << "\n";
+        return 1;
+    }
+    cert_out << cert_json.dump(4);
+    cert_out.close();
+
+    std::cout << "Certificate saved to: " << cert_path << "\n";
+
     const std::string receipt_path = default_receipt_path(file);
     std::ofstream receipt_out(receipt_path, std::ios::binary);
     if (!receipt_out) {
@@ -123,6 +170,54 @@ int handle_verify(const std::string& file, const std::string& receipt_path) {
     }
 
     if (!validate_receipt_fields(receipt_json)) {
+        return 1;
+    }
+
+    if (!receipt_json.contains("certificate")) {
+        std::cerr << "Error: receipt missing certificate\n";
+        return 1;
+    }
+
+    json received_cert = receipt_json["certificate"];
+    int node_int = received_cert["node_id"].get<int>();
+    std::string node_id = std::to_string(node_int);
+
+    std::string stored_cert_path = cert_path_for_node(node_id);
+    std::string stored_cert_text;
+
+    if (!read_file(stored_cert_path, stored_cert_text)) {
+        std::cerr << "Error: cannot open stored certificate: " << stored_cert_path << "\n";
+        std::cerr << "You must stamp at least once first.\n";
+        return 1;
+    }
+
+    json stored_cert;
+    try {
+        stored_cert = json::parse(stored_cert_text);
+    } catch (...) {
+        std::cerr << "Error: stored certificate is invalid JSON\n";
+        return 1;
+    }
+
+    int stored_id_int = stored_cert["node_id"].get<int>();
+    std::string stored_id = std::to_string(stored_id_int);
+    std::string stored_pub = stored_cert["pub_key_b64"].get<std::string>();
+    std::string stored_fp  = stored_cert["fingerprint"].get<std::string>();
+
+    std::string recomputed_fp = sha256_string(stored_id + stored_pub);
+
+    if (recomputed_fp != stored_fp) {
+        std::cerr << "INVALID: stored certificate fingerprint mismatch (tampering)\n";
+        return 1;
+    }
+
+    int recv_id_int = received_cert["node_id"].get<int>();
+    std::string recv_id = std::to_string(recv_id_int);
+    std::string recv_pub = received_cert["pub_key_b64"].get<std::string>();
+    std::string recv_fp  = received_cert["fingerprint"].get<std::string>();
+
+    if (recv_id != stored_id || recv_pub != stored_pub || recv_fp != stored_fp) {
+        std::cerr << "INVALID: certificate mismatch (server key changed!)\n";
         return 1;
     }
 
