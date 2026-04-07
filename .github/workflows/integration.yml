@@ -28,7 +28,7 @@ jobs:
       # Node network generation
       - name: Generate 4-of-5 Docker Network
         run: |
-          python3 generate_network.py 5 4
+          python3 docker_generator.py 5 4
           cat docker-compose.yml # Print to logs for debugging
 
       - name: Start 4-of-5 Cluster
