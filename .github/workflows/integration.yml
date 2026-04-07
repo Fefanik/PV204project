@@ -34,8 +34,8 @@ jobs:
       - name: Start 4-of-5 Cluster
         run: |
           docker compose up --build -d
-          echo "Waiting 60 seconds for key generation and node startup..."
-          sleep 60
+          echo "Waiting 20 seconds for key generation and node startup..."
+          sleep 20
           docker ps
 
       # Build system
@@ -80,12 +80,12 @@ jobs:
       - name: "Edge Case: Tampered Receipt"
         run: |
           set -euo pipefail
-          # Copy the receipt and tamper with the signed payload
           cp secret_doc.txt.receipt.json tampered.receipt.json
           sed -i 's/_TIME_/_TAMPERED_/g' tampered.receipt.json
 
-          OUT=$(build/client_cli verify secret_doc.txt tampered.receipt.json || true)
-          echo "$OUT"
+          OUT=$(build/client_cli verify secret_doc.txt tampered.receipt.json 2>&1 || true)
+
+          echo "Output captured by variable: [$OUT]"
           if [[ "$OUT" != *"INVALID"* ]]; then
             echo "Security failure: Tampered payload did not return INVALID!"
             exit 1
