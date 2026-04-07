@@ -55,11 +55,13 @@ add_executable(verify_cli
 add_executable(client_cli
     src/client_cli.cpp
     src/base64.cpp
+    src/crypto_utils.cpp
 )
 
 add_executable(server_main
     src/server_main.cpp
     src/base64.cpp
+    src/crypto_utils.cpp
 )
 
 # Link all executables
