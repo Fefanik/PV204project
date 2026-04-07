@@ -70,7 +70,7 @@ bool validate_receipt_fields(const json& receipt_json) {
         !receipt_json.contains("timestamp") ||
         !receipt_json.contains("payload_signed") ||
         !receipt_json.contains("final_signature_b64") ||
-        !receipt_json.contains("public_key_b64")) {
+        !receipt_json.contains("certificate")) {
         std::cerr << "Error: receipt missing required fields\n";
         return false;
     }
@@ -227,7 +227,6 @@ int handle_verify(const std::string& file, const std::string& receipt_path) {
     const long long timestamp = receipt_json["timestamp"].get<long long>();
     const std::string payload_signed = receipt_json["payload_signed"].get<std::string>();
     const std::string final_signature_b64 = receipt_json["final_signature_b64"].get<std::string>();
-    const std::string public_key_b64 = receipt_json["public_key_b64"].get<std::string>();
 
     if (status != "success") {
         std::cerr << "Error: receipt status is not success\n";
@@ -249,7 +248,7 @@ int handle_verify(const std::string& file, const std::string& receipt_path) {
         return 1;
     }
 
-    auto pub_pkg = b64dec(public_key_b64);
+    auto pub_pkg = b64dec(recv_pub);
     if (pub_pkg.empty()) {
         std::cerr << "Error: invalid public key encoding\n";
         return 1;
