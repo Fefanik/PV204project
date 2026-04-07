@@ -75,11 +75,13 @@ enable_testing()
 
 add_executable(unit_tests
     tests/test_base64.cpp
+    tests/test_crypto.cpp
     src/base64.cpp
+    src/crypto_utils.cpp
 )
 
 # Link GTest
-target_link_libraries(unit_tests GTest::gtest_main GTest::gtest)
+target_link_libraries(unit_tests GTest::gtest_main GTest::gtest ${COMMON_LIBS})
 target_include_directories(unit_tests PRIVATE include)
 
 # Register the test
