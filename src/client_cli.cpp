@@ -21,7 +21,9 @@ std::string sha256_string(const std::string &input) {
 }
 
 std::string cert_dir() {
-    return std::string(getenv("HOME")) + "/.frost_certs";
+    const char* home = getenv("HOME");
+    std::string base_dir = home ? std::string(home) : ".";
+    return base_dir + "/.frost_certs";
 }
 
 std::string cert_path_for_node(const std::string &node_id) {

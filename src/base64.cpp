@@ -1,6 +1,24 @@
 #include "base64.h"
 #include <algorithm>
 
+// ---- tiny Base64 (KISS, for JSON wire) ----
+static const char* B64 =
+ "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+std::string b64enc(const uint8_t* data, size_t len){
+    std::string out; out.reserve(((len+2)/3)*4);
+    for(size_t i=0;i<len;i+=3){
+        uint32_t v=(data[i]<<16);
+        if(i+1<len) v|=(data[i+1]<<8);
+        if(i+2<len) v|=(data[i+2]);
+        out.push_back(B64[(v>>18)&63]);
+        out.push_back(B64[(v>>12)&63]);
+        out.push_back((i+1<len)?B64[(v>>6)&63]:'=');
+        out.push_back((i+2<len)?B64[v&63]:'=');
+    }
+    return out;
+}
+
 int b64val(int c) {
     if (c >= 'A' && c <= 'Z') return c - 'A';
     if (c >= 'a' && c <= 'z') return c - 'a' + 26;

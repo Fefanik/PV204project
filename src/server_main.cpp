@@ -12,40 +12,10 @@
 #include "httplib.h"
 #include "json.hpp"
 #include "frost_ffi.h"
+#include "base64.h"
 #include <openssl/sha.h>
 
 using json = nlohmann::json;
-
-// ---- tiny Base64 (KISS, for JSON wire) ----
-static const char* B64 =
- "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-static std::string b64enc(const uint8_t* data, size_t len){
-    std::string out; out.reserve(((len+2)/3)*4);
-    for(size_t i=0;i<len;i+=3){
-        uint32_t v=(data[i]<<16);
-        if(i+1<len) v|=(data[i+1]<<8);
-        if(i+2<len) v|=(data[i+2]);
-        out.push_back(B64[(v>>18)&63]);
-        out.push_back(B64[(v>>12)&63]);
-        out.push_back((i+1<len)?B64[(v>>6)&63]:'=');
-        out.push_back((i+2<len)?B64[v&63]:'=');
-    }
-    return out;
-}
-static std::vector<uint8_t> b64dec(const std::string& s){
-    int T[256]; std::memset(T,-1,sizeof(T));
-    for(int i=0;i<64;i++) T[(int)B64[i]] = i; T['=']=0;
-    std::vector<uint8_t> out; out.reserve(s.size()*3/4);
-    uint32_t val=0; int valb=-8;
-    for(unsigned char c: s){
-        if(T[c]==-1) continue;
-        val=(val<<6)+T[c]; valb+=6;
-        if(valb>=0){ out.push_back((val>>valb)&0xFF); valb-=8; }
-    }
-    return out;
-}
-
 
 std::string sha256(const std::string &input) {
     unsigned char hash[SHA256_DIGEST_LENGTH];
@@ -62,7 +32,7 @@ std::string sha256(const std::string &input) {
     return out;
 }
 
-json build_ceritiface(std::string my_pub_key,int my_id) {
+json build_ceritiface(const std::string& my_pub_key, int my_id) {
     std::string pub_key_b64 = b64enc(
         reinterpret_cast<const uint8_t*>(my_pub_key.data()),
         my_pub_key.size()
@@ -72,12 +42,11 @@ json build_ceritiface(std::string my_pub_key,int my_id) {
         std::to_string(my_id) + pub_key_b64
     );
 
-    json certificate = {
+    return {
         {"node_id", my_id},
         {"pub_key_b64", pub_key_b64},
         {"fingerprint", cert_fingerprint}
     };
-    return certificate;
 }
 
 struct RustBuf { uint8_t* p=nullptr; size_t n=0; ~RustBuf(){ if(p) std::free(p); } };

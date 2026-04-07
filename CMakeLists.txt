@@ -59,6 +59,7 @@ add_executable(client_cli
 
 add_executable(server_main
     src/server_main.cpp
+    src/base64.cpp
 )
 
 # Link all executables

@@ -5,6 +5,15 @@
 #include <cstdint>
 
 /**
+ * @brief Encodes raw binary data into a Base64 string.
+ * 
+ * @param data Pointer to the binary data to encode.
+ * @param len The number of bytes to encode.
+ * @return std::string The resulting Base64-encoded string.
+ */
+std::string b64enc(const uint8_t* data, size_t len);
+
+/**
  * @brief Converts a base64 character to its integer value.
  * 
  * @param c The character to convert.
