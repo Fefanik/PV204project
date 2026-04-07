@@ -1,4 +1,4 @@
-#include "keygen.hpp"
+#include "keygen.h"
 #include <iostream>
 #include <exception>
 

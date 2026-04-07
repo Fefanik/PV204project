@@ -68,3 +68,6 @@ server_main
 # Local client test artifacts
 *.receipt.json
 test.txt
+
+#local docker-compose
+docker-compose.yml

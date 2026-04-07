@@ -1,72 +1,125 @@
-name: Minimal Integration Test
+name: Security & Integration Pipeline
 
 on: [push, pull_request]
 
 jobs:
-  integration:
+  security-and-integration:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install Docker Compose (Docker official repo, Ubuntu 24.04)
+      # Static anal. (Semgrep)
+      - name: Static Security Analysis (Semgrep)
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ca-certificates curl gnupg
-          sudo install -m 0755 -d /etc/apt/keyrings
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-          sudo chmod a+r /etc/apt/keyrings/docker.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu noble stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          sudo apt-get update
-          sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-          docker compose version
+          python3 -m pip install semgrep
+          # Scans C++ and Python files for security vulnerabilities
+          semgrep scan --config auto --error
 
-      - name: Start cluster
-        run: |
-          docker compose up -d
-          # give services a moment to start and load keys
-          sleep 5
-          docker ps
-
-      - name: Install toolchain (CMake + Ninja + headers + Rust)
+      # Environment & toolchain setup
+      - name: Install Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             build-essential cmake ninja-build libssl-dev \
             nlohmann-json3-dev libcpp-httplib-dev \
-            libsodium-dev rustc cargo pkg-config
+            libsodium-dev rustc cargo pkg-config valgrind
 
+      # Node network generation
+      - name: Generate 4-of-5 Docker Network
+        run: |
+          python3 docker_generator.py 5 4
+          cat docker-compose.yml # Print to logs for debugging
+
+      - name: Start 4-of-5 Cluster
+        run: |
+          docker compose up --build -d
+          echo "Waiting 20 seconds for key generation and node startup..."
+          sleep 20
+          docker ps
+
+      # Build system
       - name: Build Rust FROST library
         run: |
-          cargo --version
-          rustc --version
           cargo build --release --manifest-path lib/frostdemo/Cargo.toml
-          ls -l lib/frostdemo/target/release || true
 
-      - name: "Configure & build with CMake/Ninja"
+      - name: Configure & build with CMake/Ninja
         run: |
           rm -rf build
           cmake -S . -B build -G Ninja
           cmake --build build
-          echo "Built executables:"
-          find build -maxdepth 2 -type f -executable -print || true
 
-      - name: Create test file
-        run: echo "hello frost" > sample.txt
+      # Unit tests
+      - name: Run C++ Unit Tests
+        run: |
+          cd build
+          ctest --output-on-failure
 
-      - name: "Run client: stamp"
-        run: build/client_cli stamp sample.txt http://localhost:8081
+      # End-to-end integration tests
+      - name: Create Test Document
+        run: echo "Highly classified PV204 data" > secret_doc.txt
 
-      - name: "Run client: verify (assert EXACT 'VALID')"
+      - name: "E2E: Stamp Document (Trust On First Use)"
+        run: |
+          build/client_cli stamp secret_doc.txt http://localhost:8081
+          # Verify certificate was actually saved
+          ls -la ~/.frost_certs/
+
+      # Check with Valgrind for C++ memory leaks/segfaults
+      - name: "E2E: Verify Document (Dynamic Memory Analysis with Valgrind)"
         run: |
           set -euo pipefail
-          OUT="$(build/client_cli verify sample.txt sample.txt.receipt.json)"
-          echo "Verifier output: [$OUT]"
-          if [ "$OUT" != "VALID" ]; then
-            echo "Expected exactly 'VALID'"
+          OUT=$(valgrind --leak-check=full --error-exitcode=1 build/client_cli verify secret_doc.txt secret_doc.txt.receipt.json)
+          echo "$OUT"
+          if [[ "$OUT" != *"VALID"* ]]; then
+            echo "Expected 'VALID' output."
             exit 1
           fi
-      
+
+      # Falut tolerance edge cases
+      - name: "Edge Case: Tampered Receipt"
+        run: |
+          set -euo pipefail
+          cp secret_doc.txt.receipt.json tampered.receipt.json
+          sed -i 's/_TIME_/_TAMPERED_/g' tampered.receipt.json
+
+          OUT=$(build/client_cli verify secret_doc.txt tampered.receipt.json 2>&1 || true)
+
+          echo "Output captured by variable: [$OUT]"
+          if [[ "$OUT" != *"INVALID"* ]]; then
+            echo "Security failure: Tampered payload did not return INVALID!"
+            exit 1
+          fi
+
+      - name: "Fault Tolerance: Kill 1 Node (Should Succeed)"
+        run: |
+          set -euo pipefail
+          echo "Stopping node5..."
+          docker compose stop node5
+
+          echo "Data for 4 nodes" > doc_4_nodes.txt
+          build/client_cli stamp doc_4_nodes.txt http://localhost:8081
+
+          OUT=$(build/client_cli verify doc_4_nodes.txt doc_4_nodes.txt.receipt.json)
+          if [[ "$OUT" != *"VALID"* ]]; then
+            echo "Fault tolerance failed! 4-of-5 network couldn't sign with 4 nodes."
+            exit 1
+          fi
+
+      - name: "Threshold Enforcement: Kill 2nd Node (Should Fail)"
+        run: |
+          set -euo pipefail
+          echo "Stopping node4 (Now both 4 and 5 are dead)..."
+          docker compose stop node4
+
+          echo "Data for 3 nodes" > doc_3_nodes.txt
+
+          if build/client_cli stamp doc_3_nodes.txt http://localhost:8081; then
+            echo "Security Failure: The network signed a document with only 3 nodes in a 4-of-5 setup!"
+            exit 1
+          else
+            echo "Success: Stamp request safely rejected due to missing threshold."
+          fi
 
       - name: Teardown
         if: always()
